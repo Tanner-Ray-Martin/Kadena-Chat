@@ -1,6 +1,7 @@
 from nacl.signing import SigningKey, VerifyKey
-from nacl.hashlib import blake2b
+from nacl.hash import blake2b
 from nacl.secret import SecretBox as SB
+from nacl.encoding import URLSafeBase64Encoder, RawEncoder, HexEncoder
 import json
 
 
@@ -20,15 +21,41 @@ class Krypto:
         self.name = name
         self.password = password
         self.save = save
+        self.sign_key = SigningKey
+        self.verify_key = VerifyKey
 
     def hash(self, message):
-        pass
+        """
+        convert message to bytes
+        make blake2b bytes object from encoded message
+        convert to URLsafe string
+        remove ending "=" if there is one after decoding bytes output then return
+        """
+        return (
+            URLSafeBase64Encoder.encode(
+                blake2b(
+                    bytes(message, encoding="utf8"), digest_size=32, encoder=RawEncoder
+                )
+            )
+            .decode()
+            .rstrip("=")
+        )
 
-    def sign(self, public_key, encrypted_message):
-        pass
+    def sign(self, encrypted_message):
+        return self.sign_key.sign(
+            blake2b(
+                bytes(encrypted_message, encoding="utf8"),
+                digest_size=32,
+                encoder=RawEncoder,
+            )
+        ).signature.hex()
 
-    def verify(self, public_key, encrypted_message):
-        pass
+    def verify(self, verify_key, encrypted_message):
+        try:
+            verify_key.verify(encrypted_message, encoder=HexEncoder)
+            return True
+        except:
+            return False
 
     def loadKeysFromFile(self, name):
         with open("keys.json", "r") as fp:
